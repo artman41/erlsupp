@@ -1,0 +1,64 @@
+{
+    "name": "erlsupp",
+    "displayName": "erlang-support",
+    "description": "Erlang Language Support",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "1.56.2"
+    },
+    "activationEvents": [
+        "onLanguage:erlang"
+    ],
+    "main": "./client/out/extension",
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "erlang",
+                "aliases": [
+                    "Erlang",
+                    "erlang"
+                ],
+                "extensions": [
+                    ".erl",
+                    ".hrl",
+                    ".sys.config",
+                    ".app.src",
+                    ".app",
+                    ".beam"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "erlang",
+                "scopeName": "source.erl",
+                "path": "./syntaxes/erlang.tmLanguage.json"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "Erlang",
+            "properties": {}
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -b",
+        "watch": "tsc -b -w",
+        "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+        "test": "sh ./scripts/e2e.sh"
+    },
+    "devDependencies": {
+        "@types/mocha": "^8.2.2",
+        "@types/node": "^12.12.0",
+        "@typescript-eslint/eslint-plugin": "^4.23.0",
+        "@typescript-eslint/parser": "^4.23.0",
+        "eslint": "^7.26.0",
+        "mocha": "^8.3.2",
+        "typescript": "^4.3.2"
+    }
+}
