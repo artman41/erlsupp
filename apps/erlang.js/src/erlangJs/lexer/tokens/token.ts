@@ -15,10 +15,19 @@ export interface IIterableToken {
 export namespace Token {
     export enum Type {
         ATOM,
+        KEYWORD,
         VARIABLE,
         INTEGER,
         FLOAT,
         TUPLE,
         LIST,
+        SETTER,
+        APPEND,
+        SUBTRACT,
+        ADD,
+        MINUS,
+        COMPARE,
+        PARENTHESIS,
+        FUN
     }
 }

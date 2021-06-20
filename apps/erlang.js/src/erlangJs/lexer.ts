@@ -1,11 +1,21 @@
+import { access } from "fs";
 import { 
     Token,
     Atom,
+    Keyword,
     Variable,
     Float,
     Integer,
     Tuple,
     List,
+    Setter,
+    Append,
+    Subtract,
+    Add,
+    Minus,
+    Compare,
+    Parenthesis,
+    Fun,
 } from "./lexer/tokens";
 
 export class Lexer {
@@ -23,52 +33,71 @@ export class Lexer {
         "[":  91, "]":  93,
         "{": 123, "}": 125,
         "-":  45, "+":  43,
+        "_":  95, "=":  61,
         "'":  39, '"':  34,
-        "_":  95
     };
-
-    tokenise(str: string, acc: Token[] = []): Token[] {
+    
+    tokenise(str: string, acc: Token[] = [], returnPredicate?: (token: Token) => boolean | undefined): [Token[], string | null] {
         if(str.length === 0)
-            return acc;
+            return [acc, null];
         let token: Token | null = null;
         let i = 0;
         do {
-            let charCode = str.charCodeAt(i);
+            const charCode = str.charCodeAt(i);
             switch(charCode) {
-                case NaN:
-                    return acc;
                 case this.charCodes["\s"]:
                 case this.charCodes["\t"]:
                 case this.charCodes["\n"]:
+                case this.charCodes[","]:
                     i++;
                     continue;
                 case this.charCodes["'"]:
                     [token, str] = this.tokeniseAtom(str, i, true);
+                    if (token !== null) {
+                        let keyword = Keyword.tryParse(token);
+                        if(keyword !== null)
+                            token = keyword;
+                    }
                     break;
                 case this.charCodes["_"]:
                     [token, str] = this.tokeniseVariable(str, i);
                     break;
                 case this.charCodes["{"]:
-                    [token, str] = this.tokeniseTuple(str, i);
+                    [token, str] = this.tokeniseIterable(str, "{", "}", Tuple, i);
                     break;
                 case this.charCodes["["]:
-                    [token, str] = this.tokeniseList(str, i);
+                    [token, str] = this.tokeniseIterable(str, "[", "]", List, i);
                     break;
+                case this.charCodes["("]:
+                    [token, str] = this.tokeniseIterable(str, "(", ")", Parenthesis, i);
+                    break;
+                case this.charCodes["="]:
+                case this.charCodes["-"]:
+                case this.charCodes["+"]:
+                    return [this.tokeniseOperator(str, i, acc), null]
                 default:
-                    if(this.charCodes["a"] <= charCode && charCode <= this.charCodes["z"])
+                    if(this.charCodes["a"] <= charCode && charCode <= this.charCodes["z"]) {
                         [token, str] = this.tokeniseAtom(str, i);
-                    else if(this.charCodes["A"] <= charCode && charCode <= this.charCodes["Z"])
+                        if (token !== null) {
+                            let keyword = Keyword.tryParse(token);
+                            if(keyword !== null)
+                                token = keyword;
+                        }
+                    } else if(this.charCodes["A"] <= charCode && charCode <= this.charCodes["Z"])
                         [token, str] = this.tokeniseVariable(str, i);
                     else if(this.charCodes["0"] <= charCode && charCode <= this.charCodes["9"])
                         [token, str] = this.tokeniseNumber(str, i);
+                    else if(Number.isNaN(charCode))
+                        return [acc, null];
                     else
-                        throw new Error("shouldn't be here");
-                    break;
+                        throw new Error(`Unhandled CharCode '${charCode}'`);
             }
         } while(token === null);
         if(token !== null)
             acc.push(token);
-        return str.length === 0 ? acc : this.tokenise(str, acc);
+        if(returnPredicate !== undefined && returnPredicate(token))
+            return [acc, str];
+        return str.length === 0 ? [acc, null] : this.tokenise(str, acc, returnPredicate);
     }
 
     private tokeniseAtom(str: string, index: number = 0, wrapped: boolean = false): [Atom | null, string] {
@@ -111,7 +140,7 @@ export class Lexer {
                     break;
         }
 
-        let remainderStr = str.substr(index+1);
+        let remainderStr = str.substr(index + (wrapped ? 1 : 0));
 
         if(!wrapped || (wrapped && wrappedShouldReturn)) 
             return [new Atom(value), remainderStr]
@@ -148,7 +177,7 @@ export class Lexer {
                 break;
         }
 
-        let remainderStr = str.substr(index+1);
+        let remainderStr = str.substr(index);
 
         return [new Variable(value), remainderStr];
     }
@@ -179,7 +208,7 @@ export class Lexer {
                 break;
         }
 
-        let remainderStr = str.substr(index+1);
+        let remainderStr = str.substr(index);
 
         if(isFloat && value.endsWith("."))
             return [null, remainderStr];
@@ -193,26 +222,26 @@ export class Lexer {
             }
     }
 
-    private tokeniseTuple(str: string, index: number = 0): [Tuple | null, string] {
+    private tokeniseIterable<T>(str: string, openChar: string, closeChar: string, instantiator: new (...args: Token[]) => T, index: number = 0): [T | null, string] {
+
         let value = "";
-        let tupleClosed = false;
+        let iterableClosed = false;
         if(str.length === 0)
             return [null, str];
 
         if(index++ === 0) {
-            let tupleOpening = str[0] === "{"
-            if(!tupleOpening)
+            if(str[0] !== openChar)
                 return [null, str];
         }
         
         for (; index < str.length; index++) {
             const char = str[index];
-            if(char === "}"){
-                if(str[index+1] === "}"){
+            if(char === closeChar){
+                if(str[index+1] === closeChar){
                     value += char;
                     continue;
                 }
-                tupleClosed = true;
+                iterableClosed = true;
                 break;
             } else
                 value += char;
@@ -220,49 +249,101 @@ export class Lexer {
 
         let remainderStr = str.substr(index+1);
 
-        if(!tupleClosed)
+        if(!iterableClosed)
             return [null, remainderStr];
         
-            let tokenised = this.tokenise(value);
-            return [new Tuple(...tokenised), remainderStr];
+            let [tokenised,_] = this.tokenise(value);
+            return [new instantiator(...tokenised), remainderStr];
     }
 
-    private tokeniseList(str: string, index: number = 0): [List | null, string] {
-        let value = "";
-        let listClosed = false;
-        if(str.length === 0)
-            return [null, str];
-
-        if(index++ === 0) {
-            let tupleOpening = str[0] === "["
-            if(!tupleOpening) {
-                console.log(`char '${str[0]}' is not a valid starting char for Tuple`);
-                return [null, str];
-            }
+    private tokeniseOperator(str: string, index: number, acc: Token[]): Token[] {
+        let instantiator: new (left: Token | null, right: Token | null) => Token;
+        if(str[index] === "=" && str[index+1] === "=") {
+            instantiator = Compare;
+            index++;
         }
+        else if(str[index] === "+" && str[index+1] === "+") {
+            instantiator = Append;
+            index++;
+        }
+        else if(str[index] === "-" && str[index+1] === "-") {
+            instantiator = Subtract;
+            index++;
+        }
+        else if(str[index] === "-" && str[index+1] === ">") {
+            index++;
+            let remainderStr = str.substr(index+1);
+            if(acc[acc.length-1].type === Token.Type.PARENTHESIS && (acc[acc.length-2].type === Token.Type.ATOM || acc[acc.length-2].type === Token.Type.KEYWORD)) {
+                let args: Parenthesis;
+                let funcName: Atom;
+                let tmp;
 
-        console.log("got to for loop");
-        for (; index < str.length; index++) {
-            const char = str[index];
-            if(char === "]"){
-                if(str[index+1] === "]"){
-                    value += char;
-                    continue;
+                tmp = acc.pop();
+                if(tmp !== undefined)
+                    args = tmp;
+                else {
+                    let [tokens, _] = this.tokenise(remainderStr, acc);
+                    return tokens;
                 }
-                listClosed = true;
-                break;
-            } else
-                value += char;
+
+                tmp = acc.pop();
+                if(tmp !== undefined)
+                    funcName = tmp;
+                else {
+                    let [tokens, _] = this.tokenise(remainderStr, acc);
+                    return tokens;
+                }
+
+                let token: Token | null;
+                [token, str] = this.tokeniseFunction(remainderStr, index, funcName, args);
+                if(token !== null)
+                    acc.push(token);
+                let [tokens, _] = this.tokenise(str, acc);
+                return tokens;
+            }
+            let [tokens, _] = this.tokenise(str, acc);
+            return tokens;
+        }
+        else if(str[index] === "=")
+            instantiator = Setter;
+        else if(str[index] === "+")
+            instantiator = Add;
+        else if(str[index] === "-")
+            instantiator = Minus;
+        else throw new Error("Unknown Operator");
+
+        let remainderStr = str.substr(index + 1);
+
+        let [restTokens, _] = this.tokenise(remainderStr);
+        let left = acc.pop();
+        let right = restTokens.shift();
+        let token = new instantiator(left == undefined ? null : left, right == undefined ? null : right);
+        acc.push(token);
+        return acc.concat(restTokens);
+    }
+
+    private tokeniseFunction(str: string, index: number, funcName: Atom, args: Parenthesis): [Fun | null, string] {
+        let isAnonymous = funcName.type === Token.Type.KEYWORD && funcName.value === "fun";
+        let tailTokens: Token[], remainderStr: string | null;
+        
+        let predicate: (value: Token) => boolean;
+        if(isAnonymous) {
+            predicate = (token) => token.type === Token.Type.KEYWORD && token.value === "end";
+        } else {
+            throw "TODO: Handle normal functions"
+            return [null, str];
         }
 
-        console.log("value: %O", value);
+        [tailTokens, remainderStr] = this.tokenise(str, [], predicate);
 
-        let remainderStr = str.substr(index+1);
+        let endToken = tailTokens.pop();
+        if(endToken === undefined)
+            return [null, remainderStr === null ? "" : remainderStr];
+        if(endToken?.type !== Token.Type.KEYWORD || endToken?.value !== "end")
+            throw new Error("Something went wrong here")
 
-        if(!listClosed)
-            return [null, remainderStr];
-        
-            let tokenised = this.tokenise(value);
-            return [new List(...tokenised), remainderStr];
+        let fun = new Fun(funcName, args, [], tailTokens, isAnonymous)
+
+        return [fun, remainderStr == null ? "" : remainderStr];
     }
 }

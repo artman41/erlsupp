@@ -1,7 +1,16 @@
 export { Token } from "./tokens/token";
 export { Atom } from "./tokens/atom";
+export { Keyword } from "./tokens/keyword";
 export { Variable } from "./tokens/variable";
 export { Float } from "./tokens/float";
 export { Integer } from "./tokens/integer";
 export { Tuple } from "./tokens/tuple";
 export { List } from "./tokens/list";
+export { Parenthesis } from "./tokens/parenthesis";
+export { Setter } from "./tokens/setter";
+export { Append } from "./tokens/append";
+export { Subtract } from "./tokens/subtract";
+export { Add } from "./tokens/add";
+export { Minus } from "./tokens/minus";
+export { Compare } from "./tokens/compare";
+export { Fun } from "./tokens/fun";
