@@ -17,6 +17,7 @@ import {
     Compare,
     Parenthesis,
     Fun,
+    Delimiter,
 } from "../src/erlangJs/lexer/tokens";
 
 new TestSuiteCollection([
@@ -70,6 +71,7 @@ new TestSuiteCollection([
     new TestSuite("Expressions", [
         new TestSuite.Test("Anonymous Function (1)", anonymousFunction1),
         new TestSuite.Test("Anonymous Function (2)", anonymousFunction2),
+        new TestSuite.Test("Anonymous Function (3)", anonymousFunction3),
         new TestSuite.Test("Add X and Y",            addXAndY),
     ]),
 ]).run();
@@ -364,6 +366,24 @@ function anonymousFunction2(testObject: TestSuite.Object) {
         (2) -> {ok, case2};
         (3) -> {ok, case3};
         (_) -> {error, badarg}
+    end`);
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function anonymousFunction3(testObject: TestSuite.Object) {
+    let funName = Keyword.parse(new Atom("fun"));
+    let expected = [new Fun(funName, [], [
+        new Fun.Case(new Parenthesis(), ...[
+            new Atom("first"), new Delimiter(","),
+            new Atom("second"), new Delimiter(","),
+            new Atom("third"),
+        ]),
+    ], true)];
+    let [actual, _] = ErlangJs.tokenise(`fun() ->
+        first,
+        second,
+        third
     end`);
     testObject.log(expected, actual);
     assert.deepStrictEqual(actual, expected);

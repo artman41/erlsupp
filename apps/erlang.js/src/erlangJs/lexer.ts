@@ -1,3 +1,4 @@
+import { F_OK } from "constants";
 import * as _ from "lodash";
 import { 
     Token,
@@ -49,10 +50,10 @@ export class Lexer {
                 case this.charCodes["\s"]:
                 case this.charCodes["\t"]:
                 case this.charCodes["\n"]:
-                case this.charCodes[","]:
                     i++;
                     continue;
                 case this.charCodes[";"]:
+                case this.charCodes[","]:
                 case this.charCodes["."]:
                     [token, str] = this.tokeniseDelimiter(str, i);
                     break;
@@ -257,8 +258,17 @@ export class Lexer {
         if(!iterableClosed)
             return [null, remainderStr];
         
-            let [tokenised,_] = this.tokenise(value);
-            return [new instantiator(...tokenised), remainderStr];
+            let [tokenised, _rest] = this.tokenise(value);
+            let tokens: Token[] = [];
+            const commaDelimiter = new Delimiter(",");
+            for (let i = 0; i < tokenised.length; i++) {
+                const token = tokenised[i];
+                if((i % 2) === 1 && !_.isEqual(token, commaDelimiter))
+                    return [null, remainderStr];
+                if((i % 2) === 0)
+                    tokens.push(token);
+            }
+            return [new instantiator(...tokens), remainderStr];
     }
 
     private tokeniseOperator(str: string, index: number, acc: Token[]): Token[] {
@@ -375,6 +385,8 @@ export class Lexer {
         if(strTail === undefined)
             strTail = "";
         switch(str[index]) {
+            case ",":
+                return [new Delimiter(","), strTail];
             case ".":
                 return [new Delimiter("."), strTail];
             case ";":
