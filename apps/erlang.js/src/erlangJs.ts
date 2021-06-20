@@ -1,4 +1,5 @@
 import { Lexer } from "./erlangJs/lexer";
+import { Token } from "./erlangJs/lexer/tokens";
 
 export class ErlangJs {
 
@@ -10,7 +11,7 @@ export class ErlangJs {
         this.lexer = new Lexer();
     }
 
-    static tokenise(str: string): any {
+    static tokenise(str: string): [Token[], string | null] {
         return this.__instance.lexer.tokenise(str);
     }
 

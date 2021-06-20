@@ -28,6 +28,7 @@ export namespace Token {
         MINUS,
         COMPARE,
         PARENTHESIS,
-        FUN
+        FUN,
+        DELIMITER,
     }
 }

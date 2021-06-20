@@ -21,4 +21,11 @@ export class Keyword extends Atom {
     static tryParse(atom: Atom): Keyword | null {
         return this.keywords.includes(atom.value) ? new Keyword(atom) : null;
     }
+    
+    static parse(atom: Atom): Keyword | never {
+        if(this.keywords.includes(atom.value))
+            return new Keyword(atom);
+        else
+            throw new Error("Atom is not a Keyword");
+    }
 }

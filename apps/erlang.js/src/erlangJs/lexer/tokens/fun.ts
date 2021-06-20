@@ -5,17 +5,27 @@ import { Token } from "./token";
 export class Fun implements Token {
     readonly type: Token.Type;
     readonly name: Atom;
-    readonly args: Parenthesis;
     readonly guards: Token[];
-    readonly value: Token[];
+    readonly value: Fun.Case[];
     readonly isAnonymous: boolean;
 
-    constructor(name: Atom, args: Parenthesis, guards: Token[], values: Token[], isAnonymous: boolean = false) {
+    constructor(name: Atom, guards: Token[], cases: Fun.Case[], isAnonymous: boolean = false) {
         this.type = Token.Type.FUN;
         this.name = name;
-        this.args = args;
         this.guards = guards;
-        this.value = values;
+        this.value = cases;
         this.isAnonymous = isAnonymous;
+    }
+}
+
+export namespace Fun {
+    export class Case {
+        args: Parenthesis;
+        tokens: Token[];
+
+        constructor(args: Parenthesis, ...tokens: Token[]) {
+            this.args = args;
+            this.tokens = tokens;
+        }
     }
 }

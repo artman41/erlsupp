@@ -68,8 +68,9 @@ new TestSuiteCollection([
         new TestSuite.Test("Compare (4)", compare4),
     ]),
     new TestSuite("Expressions", [
-        new TestSuite.Test("Anonymous Function", anonymousFunction),
-        new TestSuite.Test("Add X and Y",        addXAndY),
+        new TestSuite.Test("Anonymous Function (1)", anonymousFunction1),
+        new TestSuite.Test("Anonymous Function (2)", anonymousFunction2),
+        new TestSuite.Test("Add X and Y",            addXAndY),
     ]),
 ]).run();
 
@@ -343,19 +344,44 @@ function compare4() {
 /* Expressions */
 /***************/
 
-function anonymousFunction() {
-    let funName = Keyword.tryParse(new Atom("fun"));
-    if(funName === null)
-        throw new Error("wobbly");
-    let expected = [new Fun(funName, new Parenthesis(), [], [new Atom("ok")], true)];
+function anonymousFunction1() {
+    let funName = Keyword.parse(new Atom("fun"));
+    let expected = [new Fun(funName, [], [new Fun.Case(new Parenthesis(), new Atom("ok"))], true)];
     let [actual, _] = ErlangJs.tokenise("fun() -> ok end");
     assert.deepStrictEqual(actual, expected);
 }
 
-function addXAndY() {
-    throw "Not Implemented";
+function anonymousFunction2(testObject: TestSuite.Object) {
+    let funName = Keyword.parse(new Atom("fun"));
+    let expected = [new Fun(funName, [], [
+        new Fun.Case(new Parenthesis(new Integer(1)), new Tuple(new Atom("ok"), new Atom("case1"))),
+        new Fun.Case(new Parenthesis(new Integer(2)), new Tuple(new Atom("ok"), new Atom("case2"))),
+        new Fun.Case(new Parenthesis(new Integer(3)), new Tuple(new Atom("ok"), new Atom("case3"))),
+        new Fun.Case(new Parenthesis(new Variable("_")), new Tuple(new Atom("error"), new Atom("badarg"))),
+    ], true)];
+    let [actual, _] = ErlangJs.tokenise(`fun
+        (1) -> {ok, case1};
+        (2) -> {ok, case2};
+        (3) -> {ok, case3};
+        (_) -> {error, badarg}
+    end`);
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function addXAndY(testObject: TestSuite.Object) {
+    let expected = [new Fun(
+        new Atom("add"), 
+        [],
+        [new Fun.Case(
+            new Parenthesis(new Variable("X"), new Variable("Y")),
+            ...[new Add(new Variable("X"), new Variable("Y"))]
+        )]
+    )];
     let [actual, _] = ErlangJs.tokenise(`
         add(X, Y) ->
             X + Y.
-    `)
+    `);
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
 }

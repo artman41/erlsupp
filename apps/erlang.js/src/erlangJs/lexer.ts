@@ -1,4 +1,4 @@
-import { access } from "fs";
+import * as _ from "lodash";
 import { 
     Token,
     Atom,
@@ -17,6 +17,7 @@ import {
     Parenthesis,
     Fun,
 } from "./lexer/tokens";
+import { Delimiter } from "./lexer/tokens/delimiter";
 
 export class Lexer {
     private readonly charCodes = {
@@ -51,6 +52,10 @@ export class Lexer {
                 case this.charCodes[","]:
                     i++;
                     continue;
+                case this.charCodes[";"]:
+                case this.charCodes["."]:
+                    [token, str] = this.tokeniseDelimiter(str, i);
+                    break;
                 case this.charCodes["'"]:
                     [token, str] = this.tokeniseAtom(str, i, true);
                     if (token !== null) {
@@ -317,7 +322,7 @@ export class Lexer {
         let [restTokens, _] = this.tokenise(remainderStr);
         let left = acc.pop();
         let right = restTokens.shift();
-        let token = new instantiator(left == undefined ? null : left, right == undefined ? null : right);
+        let token = new instantiator(left === undefined ? null : left, right === undefined ? null : right);
         acc.push(token);
         return acc.concat(restTokens);
     }
@@ -326,24 +331,56 @@ export class Lexer {
         let isAnonymous = funcName.type === Token.Type.KEYWORD && funcName.value === "fun";
         let tailTokens: Token[], remainderStr: string | null;
         
-        let predicate: (value: Token) => boolean;
-        if(isAnonymous) {
-            predicate = (token) => token.type === Token.Type.KEYWORD && token.value === "end";
-        } else {
-            throw "TODO: Handle normal functions"
-            return [null, str];
-        }
+        const caseDelimiterToken = new Delimiter(";");
+
+        let predicateToken: Token = isAnonymous ? Keyword.parse(new Atom("end")) : new Delimiter(".");
+        let predicate = (token: Token) => _.isEqual(token, predicateToken) || _.isEqual(token, caseDelimiterToken);
 
         [tailTokens, remainderStr] = this.tokenise(str, [], predicate);
 
         let endToken = tailTokens.pop();
         if(endToken === undefined)
             return [null, remainderStr === null ? "" : remainderStr];
-        if(endToken?.type !== Token.Type.KEYWORD || endToken?.value !== "end")
-            throw new Error("Something went wrong here")
 
-        let fun = new Fun(funcName, args, [], tailTokens, isAnonymous)
+        let caseAcc = [
+            new Fun.Case(args, ...tailTokens)
+        ];
 
-        return [fun, remainderStr == null ? "" : remainderStr];
+        if(_.isEqual(endToken, caseDelimiterToken)) {
+            do {
+                if(remainderStr === null)
+                    break;
+                let [[token], str] = this.tokenise(remainderStr, [], (token) => token.type === Token.Type.PARENTHESIS);
+                if(str === null) {
+                    caseAcc.push(new Fun.Case(token as Parenthesis));
+                    break;
+                }
+                let indexOfPointer = str.indexOf("->");
+                let afterPointer = str.substr(indexOfPointer+2);
+                [tailTokens, remainderStr] = this.tokenise(afterPointer, [], predicate);
+                endToken = tailTokens.pop();
+                if(endToken === undefined)
+                    return [null, remainderStr === null ? "" : remainderStr];
+                caseAcc.push(new Fun.Case(token as Parenthesis, ...tailTokens));
+            } while(!_.isEqual(endToken, predicateToken))
+        }
+
+        let fun = new Fun(funcName, [], caseAcc, isAnonymous)
+
+        return [fun, remainderStr === null ? "" : remainderStr];
+    }
+
+    tokeniseDelimiter(str: string, index: number): [Delimiter | null, string] {
+        let strTail = str.substr(1);
+        if(strTail === undefined)
+            strTail = "";
+        switch(str[index]) {
+            case ".":
+                return [new Delimiter("."), strTail];
+            case ";":
+                return [new Delimiter(";"), strTail];
+            default:
+                return [null, strTail]
+        }
     }
 }

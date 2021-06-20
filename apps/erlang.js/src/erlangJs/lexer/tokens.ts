@@ -14,3 +14,4 @@ export { Add } from "./tokens/add";
 export { Minus } from "./tokens/minus";
 export { Compare } from "./tokens/compare";
 export { Fun } from "./tokens/fun";
+export { Delimiter } from "./tokens/delimiter";
