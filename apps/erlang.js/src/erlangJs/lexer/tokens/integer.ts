@@ -1,4 +1,4 @@
-import { Token } from "./token";
+import { Token } from "../tokens";
 
 export class Integer implements Token {
     readonly type: Token.Type;

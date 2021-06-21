@@ -1,5 +1,4 @@
-import { Atom } from "./atom";
-import { Token } from "./token";
+import { Token, Atom } from "../tokens";
 
 export class Keyword extends Atom {
     readonly type: Token.Type;
@@ -10,10 +9,24 @@ export class Keyword extends Atom {
         "fun",
         "if",
         "case",
-        "of"
+        "of",
+        "when",
+        "and",
+        "andalso",
+        "or",
+        "orelse",
+        "true",
+        "false",
+        "not",
+        "rem",
+        "div",
+        "band",
+        "bor",
+        "bxor",
+        "bnot",
     ];
 
-    private constructor(atom: Atom) {
+    protected constructor(atom: Atom) {
         super(atom.value);
         this.type = Token.Type.KEYWORD;
     }
@@ -23,9 +36,9 @@ export class Keyword extends Atom {
     }
     
     static parse(atom: Atom): Keyword | never {
-        if(this.keywords.includes(atom.value))
-            return new Keyword(atom);
-        else
-            throw new Error("Atom is not a Keyword");
+        let ret = this.tryParse(atom);
+        if(ret === null)
+            throw new Error("Atom is not a Keyword");;
+        return ret;
     }
 }

@@ -1,4 +1,3 @@
-import { F_OK } from "constants";
 import * as _ from "lodash";
 import { 
     Token,
@@ -17,6 +16,10 @@ import {
     Compare,
     Parenthesis,
     Fun,
+    Boolean,
+    Multiply,
+    Divide,
+    BooleanOp
 } from "./lexer/tokens";
 import { Delimiter } from "./lexer/tokens/delimiter";
 
@@ -37,6 +40,7 @@ export class Lexer {
         "-":  45, "+":  43,
         "_":  95, "=":  61,
         "'":  39, '"':  34,
+        "*":  42,  "/": 47,
     };
     
     tokenise(str: string, acc: Token[] = [], returnPredicate?: (token: Token) => boolean | undefined): [Token[], string | null] {
@@ -55,14 +59,17 @@ export class Lexer {
                 case this.charCodes[";"]:
                 case this.charCodes[","]:
                 case this.charCodes["."]:
+                case this.charCodes[":"]:
                     [token, str] = this.tokeniseDelimiter(str, i);
                     break;
                 case this.charCodes["'"]:
                     [token, str] = this.tokeniseAtom(str, i, true);
                     if (token !== null) {
-                        let keyword = Keyword.tryParse(token);
-                        if(keyword !== null)
-                            token = keyword;
+                        let [parsedToken, remainderStr] = this.tryParseAtom(token, str, acc);
+                        if(parsedToken !== null) {
+                            token = parsedToken;
+                            str = remainderStr;
+                        }
                     }
                     break;
                 case this.charCodes["_"]:
@@ -80,14 +87,18 @@ export class Lexer {
                 case this.charCodes["="]:
                 case this.charCodes["-"]:
                 case this.charCodes["+"]:
+                case this.charCodes["/"]:
+                case this.charCodes["*"]:
                     return [this.tokeniseOperator(str, i, acc), null]
                 default:
                     if(this.charCodes["a"] <= charCode && charCode <= this.charCodes["z"]) {
                         [token, str] = this.tokeniseAtom(str, i);
                         if (token !== null) {
-                            let keyword = Keyword.tryParse(token);
-                            if(keyword !== null)
-                                token = keyword;
+                            let [parsedToken, remainderStr] = this.tryParseAtom(token, str, acc);
+                            if(parsedToken !== null) {
+                                token = parsedToken;
+                                str = remainderStr;
+                            }
                         }
                     } else if(this.charCodes["A"] <= charCode && charCode <= this.charCodes["Z"])
                         [token, str] = this.tokeniseVariable(str, i);
@@ -104,6 +115,10 @@ export class Lexer {
         if(returnPredicate !== undefined && returnPredicate(token))
             return [acc, str];
         return str.length === 0 ? [acc, null] : this.tokenise(str, acc, returnPredicate);
+    }
+
+    tokeniseSingle(str: string, acc: Token[]): [Token[], string | null] {
+        return this.tokenise(str, acc, (_) => true);
     }
 
     private tokeniseAtom(str: string, index: number = 0, wrapped: boolean = false): [Atom | null, string] {
@@ -272,21 +287,38 @@ export class Lexer {
     }
 
     private tokeniseOperator(str: string, index: number, acc: Token[]): Token[] {
-        let instantiator: new (left: Token | null, right: Token | null) => Token;
+        let instantiator: new (left: Token | null, right: Token | null, options?: any) => Token;
+        let options: any;
         if(str[index] === "=" && str[index+1] === "=") {
             instantiator = Compare;
-            index++;
+            options = {exact: false, not: false}
+            index+=1;
+        }
+        else if(str[index] === "/" && str[index+1] === "=") {
+            instantiator = Compare;
+            options = {exact: false, not: true}
+            index+=1;
+        }
+        else if(str[index] === "=" && str[index+1] === ":" && str[index+2] === "=") {
+            instantiator = Compare;
+            options = {exact: true, not: false}
+            index+=2;
+        }
+        else if(str[index] === "=" && str[index+1] === "/" && str[index+2] === "=") {
+            instantiator = Compare;
+            options = {exact: true, not: true}
+            index+=2;
         }
         else if(str[index] === "+" && str[index+1] === "+") {
             instantiator = Append;
-            index++;
+            index+=1;
         }
         else if(str[index] === "-" && str[index+1] === "-") {
             instantiator = Subtract;
-            index++;
+            index+=1;
         }
         else if(str[index] === "-" && str[index+1] === ">") {
-            index++;
+            index+=1;
             let remainderStr = str.substr(index+1);
             if(acc[acc.length-1].type === Token.Type.PARENTHESIS && (acc[acc.length-2].type === Token.Type.ATOM || acc[acc.length-2].type === Token.Type.KEYWORD)) {
                 let args: Parenthesis;
@@ -325,6 +357,10 @@ export class Lexer {
             instantiator = Add;
         else if(str[index] === "-")
             instantiator = Minus;
+        else if(str[index] === "*")
+            instantiator = Multiply;
+        else if(str[index] === "/")
+            instantiator = Divide;
         else throw new Error("Unknown Operator");
 
         let remainderStr = str.substr(index + 1);
@@ -332,7 +368,7 @@ export class Lexer {
         let [restTokens, _] = this.tokenise(remainderStr);
         let left = acc.pop();
         let right = restTokens.shift();
-        let token = new instantiator(left === undefined ? null : left, right === undefined ? null : right);
+        let token = new instantiator(left === undefined ? null : left, right === undefined ? null : right, options);
         acc.push(token);
         return acc.concat(restTokens);
     }
@@ -391,8 +427,29 @@ export class Lexer {
                 return [new Delimiter("."), strTail];
             case ";":
                 return [new Delimiter(";"), strTail];
+            case ":":
+                return [new Delimiter(":"), strTail];
             default:
                 return [null, strTail]
         }
+    }
+
+    tryParseAtom(token: Atom, str: string, acc: Token[]): [Token | null, string] {
+        let keyword = Keyword.tryParse(token);
+        if(keyword === null)
+            return [token, str];
+        let boolean = Boolean.tryParse(keyword)
+        if(boolean !== null)
+            return [boolean, str];
+        let prevToken = acc.pop();
+        let [[nextToken], remainderStr] = this.tokeniseSingle(str, []);
+        let booleanOp = BooleanOp.tryParse(keyword, prevToken === undefined ? null : prevToken, nextToken);
+        if(booleanOp !== null)
+            return [booleanOp, remainderStr === null ? "" : remainderStr];
+
+        // Need to put the token back in the acc
+        if(prevToken !== undefined)
+            acc.push(prevToken);
+        return [keyword, str];
     }
 }

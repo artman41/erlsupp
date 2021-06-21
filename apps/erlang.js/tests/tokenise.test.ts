@@ -14,10 +14,13 @@ import {
     Subtract,
     Add,
     Minus,
+    Multiply,
+    Divide,
     Compare,
     Parenthesis,
     Fun,
     Delimiter,
+    BooleanOp
 } from "../src/erlangJs/lexer/tokens";
 
 new TestSuiteCollection([
@@ -63,10 +66,48 @@ new TestSuiteCollection([
         new TestSuite.Test("Minus (2)", minus2),
         new TestSuite.Test("Minus (3)", minus3),
         new TestSuite.Test("Minus (4)", minus4),
+        new TestSuite.Test("Multiply (1)", multiply1),
+        new TestSuite.Test("Multiply (2)", multiply2),
+        new TestSuite.Test("Multiply (3)", multiply3),
+        new TestSuite.Test("Multiply (4)", multiply4),
+        new TestSuite.Test("Divide (1)", divide1),
+        new TestSuite.Test("Divide (2)", divide2),
+        new TestSuite.Test("Divide (3)", divide3),
+        new TestSuite.Test("Divide (4)", divide4),
         new TestSuite.Test("Compare (1)", compare1),
         new TestSuite.Test("Compare (2)", compare2),
         new TestSuite.Test("Compare (3)", compare3),
         new TestSuite.Test("Compare (4)", compare4),
+        new TestSuite.Test("Compare (5)", compare5),
+        new TestSuite.Test("Compare (6)", compare6),
+        new TestSuite.Test("Compare (7)", compare7),
+        new TestSuite.Test("Compare (8)", compare8),
+        new TestSuite.Test("Compare (9)", compare9),
+        new TestSuite.Test("Compare (10)", compare10),
+        new TestSuite.Test("Compare (11)", compare11),
+        new TestSuite.Test("Compare (12)", compare12),
+        new TestSuite.Test("Compare (13)", compare13),
+        new TestSuite.Test("Compare (14)", compare14),
+        new TestSuite.Test("Compare (15)", compare15),
+        new TestSuite.Test("Compare (16)", compare16),
+    ]),
+    new TestSuite("Boolean Operators", [
+        new TestSuite.Test("And (1)", and1),
+        new TestSuite.Test("And (2)", and2),
+        new TestSuite.Test("And (3)", and3),
+        new TestSuite.Test("And (4)", and4),
+        new TestSuite.Test("AndAlso (1)", andAlso1),
+        new TestSuite.Test("AndAlso (2)", andAlso2),
+        new TestSuite.Test("AndAlso (3)", andAlso3),
+        new TestSuite.Test("AndAlso (4)", andAlso4),
+        new TestSuite.Test("Or (1)", or1),
+        new TestSuite.Test("Or (2)", or2),
+        new TestSuite.Test("Or (3)", or3),
+        new TestSuite.Test("Or (4)", or4),
+        new TestSuite.Test("OrElse (1)", orElse1),
+        new TestSuite.Test("OrElse (2)", orElse2),
+        new TestSuite.Test("OrElse (3)", orElse3),
+        new TestSuite.Test("OrElse (4)", orElse4),
     ]),
     new TestSuite("Expressions", [
         new TestSuite.Test("Anonymous Function (1)", anonymousFunction1),
@@ -318,27 +359,279 @@ function minus4() {
     assert.deepStrictEqual(actual, expected);
 }
 
-function compare1() {
+function multiply1() {
+    let expected = [new Multiply(new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var * atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function multiply2() {
+    let expected = [new Multiply(new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom * atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function multiply3() {
+    let expected = [new Multiply(null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" * atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function multiply4() {
+    let expected = [new Multiply(new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var * ");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function divide1() {
+    let expected = [new Divide(new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var / atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function divide2() {
+    let expected = [new Divide(new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom / atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function divide3() {
+    let expected = [new Divide(null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" / atom");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function divide4() {
+    let expected = [new Divide(new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var / ");
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare1(testObject: TestSuite.Object) {
     let expected = [new Compare(new Variable("Var"), new Atom("atom"))];
     let [actual, _] = ErlangJs.tokenise("Var == atom");
+    testObject.log(expected, actual);
     assert.deepStrictEqual(actual, expected);
 }
 
-function compare2() {
+function compare2(testObject: TestSuite.Object) {
     let expected = [new Compare(new Atom("atom"), new Atom("atom"))];
     let [actual, _] = ErlangJs.tokenise("atom == atom");
+    testObject.log(expected, actual);
     assert.deepStrictEqual(actual, expected);
 }
 
-function compare3() {
+function compare3(testObject: TestSuite.Object) {
     let expected = [new Compare(null, new Atom("atom"))];
     let [actual, _] = ErlangJs.tokenise(" == atom");
+    testObject.log(expected, actual);
     assert.deepStrictEqual(actual, expected);
 }
 
-function compare4() {
+function compare4(testObject: TestSuite.Object) {
     let expected = [new Compare(new Variable("Var"), null)];
     let [actual, _] = ErlangJs.tokenise("Var == ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare5(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), new Atom("atom"), {not: true})];
+    let [actual, _] = ErlangJs.tokenise("Var /= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare6(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Atom("atom"), new Atom("atom"), {not: true})];
+    let [actual, _] = ErlangJs.tokenise("atom /= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare7(testObject: TestSuite.Object) {
+    let expected = [new Compare(null, new Atom("atom"), {not: true})];
+    let [actual, _] = ErlangJs.tokenise(" /= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare8(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), null, {not: true})];
+    let [actual, _] = ErlangJs.tokenise("Var /= ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare9(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), new Atom("atom"), {exact: true})];
+    let [actual, _] = ErlangJs.tokenise("Var =:= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare10(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Atom("atom"), new Atom("atom"), {exact: true})];
+    let [actual, _] = ErlangJs.tokenise("atom =:= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare11(testObject: TestSuite.Object) {
+    let expected = [new Compare(null, new Atom("atom"), {exact: true})];
+    let [actual, _] = ErlangJs.tokenise(" =:= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare12(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), null, {exact: true})];
+    let [actual, _] = ErlangJs.tokenise("Var =:= ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare13(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), new Atom("atom"), {exact: true, not: true})];
+    let [actual, _] = ErlangJs.tokenise("Var =/= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare14(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Atom("atom"), new Atom("atom"), {exact: true, not: true})];
+    let [actual, _] = ErlangJs.tokenise("atom =/= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare15(testObject: TestSuite.Object) {
+    let expected = [new Compare(null, new Atom("atom"), {exact: true, not: true})];
+    let [actual, _] = ErlangJs.tokenise(" =/= atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function compare16(testObject: TestSuite.Object) {
+    let expected = [new Compare(new Variable("Var"), null, {exact: true, not: true})];
+    let [actual, _] = ErlangJs.tokenise("Var =/= ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+/*********************/
+/* Boolean Operators */
+/*********************/
+
+function and1(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.AND, new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var and atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function and2(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.AND, new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom and atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function and3(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.AND, null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" and atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function and4(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.AND, new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var and ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function andAlso1(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ANDALSO, new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var andalso atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function andAlso2(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ANDALSO, new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom andalso atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function andAlso3(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ANDALSO, null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" andalso atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function andAlso4(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ANDALSO, new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var andalso ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function or1(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.OR, new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var or atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function or2(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.OR, new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom or atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function or3(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.OR, null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" or atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function or4(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.OR, new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var or ");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function orElse1(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ORELSE, new Variable("Var"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("Var orelse atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function orElse2(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ORELSE, new Atom("atom"), new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise("atom orelse atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function orElse3(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ORELSE, null, new Atom("atom"))];
+    let [actual, _] = ErlangJs.tokenise(" orelse atom");
+    testObject.log(expected, actual);
+    assert.deepStrictEqual(actual, expected);
+}
+
+function orElse4(testObject: TestSuite.Object) {
+    let expected = [new BooleanOp(BooleanOp.Type.ORELSE, new Variable("Var"), null)];
+    let [actual, _] = ErlangJs.tokenise("Var orelse ");
+    testObject.log(expected, actual);
     assert.deepStrictEqual(actual, expected);
 }
 

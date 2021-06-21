@@ -1,6 +1,4 @@
-import { Atom } from "./atom";
-import { Parenthesis } from "./parenthesis";
-import { Token } from "./token";
+import { Token, Atom, Parenthesis } from "../tokens";
 
 export class Fun implements Token {
     readonly type: Token.Type;

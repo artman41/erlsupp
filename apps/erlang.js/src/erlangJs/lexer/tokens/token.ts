@@ -26,9 +26,13 @@ export namespace Token {
         SUBTRACT,
         ADD,
         MINUS,
+        MULTIPLY,
+        DIVIDE,
         COMPARE,
         PARENTHESIS,
         FUN,
         DELIMITER,
+        BOOLEAN,
+        BOOLEAN_OP,
     }
 }

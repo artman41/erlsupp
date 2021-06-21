@@ -1,4 +1,4 @@
-import { IIterableToken, Token } from "./token";
+import { IIterableToken, Token } from "../tokens";
 
 export class List implements Token, IIterableToken {
     readonly type: Token.Type;
