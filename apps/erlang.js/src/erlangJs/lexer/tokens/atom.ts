@@ -1,17 +1,10 @@
 import { Token } from "../tokens";
 
-export class Atom implements Token {
-    readonly type: Token.Type;
+export class Atom extends Token {
     readonly value: string;
 
     constructor(value: string) {
-        this.type = Token.Type.ATOM;
+        super(Token.Type.ATOM);
         this.value = value;
-    }
-    
-    static isAtom(str: string): boolean {
-        let regex = /^(?:([a-z][a-zA-Z_0-9]+)|'(.+?)')$/
-
-        return regex.test(str);
     }
 }

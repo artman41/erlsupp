@@ -1,10 +1,8 @@
 export abstract class Token {
     readonly type: Token.Type;
-    readonly value: any;
 
-    constructor(type: Token.Type, value: any) {
+    constructor(type: Token.Type) {
         this.type = type;
-        this.value = value;
     }
 }
 
@@ -14,25 +12,9 @@ export interface IIterableToken {
 
 export namespace Token {
     export enum Type {
+        SYMBOL,
         ATOM,
-        KEYWORD,
         VARIABLE,
-        INTEGER,
-        FLOAT,
-        TUPLE,
-        LIST,
-        SETTER,
-        APPEND,
-        SUBTRACT,
-        ADD,
-        MINUS,
-        MULTIPLY,
-        DIVIDE,
-        COMPARE,
-        PARENTHESIS,
-        FUN,
-        DELIMITER,
-        BOOLEAN,
-        BOOLEAN_OP,
+        NUMBER,
     }
 }

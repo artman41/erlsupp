@@ -2,15 +2,17 @@ import * as assert from 'assert';
 import * as util from 'util';
 
 export class TestSuiteCollection {
+    collectionName: string
     suites: TestSuite[]
 
-    constructor(suites: TestSuite[]) {
+    constructor(collectionName: string, suites: TestSuite[]) {
+        this.collectionName = collectionName;
         this.suites = suites;
     }
 
     run(): void {
         for (const suite of this.suites) {
-            suite.runSuite();
+            suite.runSuite(this.collectionName);
         }
     }
 }
@@ -26,10 +28,10 @@ export class TestSuite {
         this.testObject = new TestSuite.Object(options === undefined ? {} : options);
     }
 
-    runSuite(): Mocha.Suite {
-        return describe(this.suiteName, () => {
+    runSuite(collectionName: string): Mocha.Suite {
+        return describe(`[${collectionName}] ${this.suiteName}`, () => {
             if(this.testObject.debug)
-                console.log("\n== Running suite %O ==", this.suiteName);
+                console.log("\n== Running suite [%O] %O ==", collectionName, this.suiteName);
             for (const test of this.tests) {
                 test.runTest(this.testObject);
             }

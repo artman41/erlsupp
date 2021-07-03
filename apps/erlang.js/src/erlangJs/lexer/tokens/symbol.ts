@@ -1,11 +1,10 @@
 import { Token } from "../tokens";
 
-export class Delimiter implements Token {
-    readonly type: Token.Type;
+export class Symbol extends Token {
     readonly value: string;
 
     constructor(value: string) {
-        this.type = Token.Type.DELIMITER;
+        super(Token.Type.SYMBOL)
         this.value = value;
     }
 }

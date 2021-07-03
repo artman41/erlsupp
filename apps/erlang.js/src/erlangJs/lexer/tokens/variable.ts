@@ -1,17 +1,12 @@
 import { Token } from "../tokens";
 
-export class Variable implements Token {
-    readonly type: Token.Type;
+export class Variable extends Token {
     readonly value: string;
+    readonly isIgnored: boolean;
 
     constructor(value: string) {
-        this.type = Token.Type.VARIABLE;
+        super(Token.Type.VARIABLE);
         this.value = value;
-    }
-    
-    static isVariable(str: string): boolean {
-        let regex = /^[A-Z_][a-zA-Z_0-9]+$/
-
-        return regex.test(str);
+        this.isIgnored = value === "_";
     }
 }
