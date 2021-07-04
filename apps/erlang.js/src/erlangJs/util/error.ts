@@ -3,3 +3,7 @@ export function NewError(name: string, message?: string): Error {
     err.name = name;
     return err;
 }
+
+export function NotImplemented(): Error {
+    return new Error("Not Implemented");
+}

@@ -1,4 +1,5 @@
 import { Lexer } from "./erlangJs/lexer";
+import { LinePosition } from "./erlangJs/lexer/line_position";
 import { Token } from "./erlangJs/lexer/tokens";
 
 export class ErlangJs {
@@ -18,7 +19,7 @@ export class ErlangJs {
         return tokenised.value
     }
 
-    static tokeniseSingle(str: string): [Token, string] {
+    static tokeniseSingle(str: string): [Token, number, LinePosition] {
         let tokenised = this.__instance.lexer.tokeniseSingle(str);
         if (tokenised instanceof Error)
             throw tokenised;

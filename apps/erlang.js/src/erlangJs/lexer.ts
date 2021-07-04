@@ -1,6 +1,7 @@
 import * as _ from "lodash";
 import { Ok } from "./util/ok"
-import { NewError } from "./util/error"
+import { NewError, NotImplemented } from "./util/error"
+import { LinePosition } from "./lexer/line_position"
 import { 
     Token,
     Symbol,
@@ -8,6 +9,7 @@ import {
     Variable,
     Number
 } from "./lexer/tokens";
+import { SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION } from "constants";
 
 export class Lexer {
     static readonly charCodes = {
@@ -40,24 +42,28 @@ export class Lexer {
         return Lexer.StageOne.tokenise(str);
     }
     
-    tokeniseSingle(str: string): Ok<[Token, string]> | Error {
-        return Lexer.StageOne.tokeniseSingle(str);
+    tokeniseSingle(str: string, linePos?: LinePosition): Ok<[Token, number, LinePosition]> | Error {
+        return Lexer.StageOne.tokeniseSingle(str, linePos);
     }
 }
 
 export namespace Lexer {
     export class StageOne {
+        // tokenise returns either Ok<Token[]> or an Error for a given string.
         static tokenise(str: string): Ok<Token[]> | Error {
             let acc = [];
-            
+            let linePos: LinePosition | undefined = undefined
+            let token: Token
+            let index: number
             while(str.length > 0) {
-                let ret = StageOne.tokeniseSingle(str)
+                let ret = StageOne.tokeniseSingle(str, linePos)
                 if (ret instanceof Error) {
                     if(ret.name === Lexer.errors.stringEmpty)
                         break
                     return ret;
                 }
-                let [token, str2] = ret.value
+                [token, index, linePos] = ret.value
+                let str2 = str.substr(index)
                 if (str === str2) {
                     throw new Error("String didn't change!")
                 }
@@ -67,17 +73,31 @@ export namespace Lexer {
             return new Ok(acc)
         }
 
-        static tokeniseSingle(str: string): Ok<[Token, string]> | Error {
+        // tokeniseSingle returns either Ok<[Token, lastIndex, lastLinePosition]> or an Error.
+        static tokeniseSingle(str: string, linePos?: LinePosition): Ok<[Token, number, LinePosition]> | Error {
             let token: Token | null = null;
             let i = 0;
+            let line = 1;
+            let column = 1;
+            if(linePos !== undefined) {
+                line = linePos.line
+                column = linePos.column
+            }
             do {
                 if (str.length === 0 || str.length <= i)
                     return NewError(Lexer.errors.stringEmpty)
-                let char = str[i];
+                const linePos = new LinePosition(line, column);
+                const char = str[i];
+                let columnIncrement: number
                 switch(char) {
+                    case "\n":
+                        line++;
+                        column = 1;
+                        i++;
+                        continue;
                     case " ":
                     case "\t":
-                    case "\n":
+                        column++
                         i++;
                         continue;
                     case "#":
@@ -100,7 +120,9 @@ export namespace Lexer {
                         let ret = StageOne.tokeniseSymbol(str, i)
                         if(ret instanceof Error)
                             return ret;
-                        [token, i] = ret.value
+                        [token, i, columnIncrement] = ret.value
+                        token.linePos = linePos
+                        column += columnIncrement
                         break;
                     default:
                         if(char == "'" || ("a" <= char && char <= "z")) {
@@ -108,34 +130,42 @@ export namespace Lexer {
                             if(ret instanceof Error) {
                                 return ret
                             }
-                            [token, i] = ret.value
+                            [token, i, columnIncrement] = ret.value
+                            token.linePos = linePos
+                            column += columnIncrement
                         }
                         else if(char == "_" || ("A" <= char && char <= "Z")) {
                             let ret = StageOne.tokeniseVariable(str, i)
                             if(ret instanceof Error) {
                                 return ret
                             }
-                            [token, i] = ret.value
+                            [token, i, columnIncrement] = ret.value
+                            token.linePos = linePos
+                            column += columnIncrement
                         }
                         else if("0" <= char && char <= "9") {
                             let ret = StageOne.tokeniseNumber(str, i)
                             if(ret instanceof Error) {
                                 return ret
                             }
-                            [token, i] = ret.value
+                            [token, i, columnIncrement] = ret.value
+                            token.linePos = linePos
+                            column += columnIncrement
                         }
                         else {
                             return NewError(Lexer.errors.unhandledChar, `Unhandled char '${char}' (CharCode ${char?.charCodeAt(0)})`);
                         }
                 }
             } while(token === null);
-            return new Ok([token, str.substr(i)])
+            return new Ok([token, i, new LinePosition(line, column)])
         }
 
-        private static tokeniseSymbol(str: string, index: number): Ok<[Symbol, number]> | Error {
+        private static tokeniseSymbol(str: string, index: number): Ok<[Symbol, number, number]> | Error {
             if(str.length === 0)
                 return NewError(Lexer.errors.stringEmpty)
-                
+            
+            let indexBefore = index;
+
             const char1 = str[index++];
             const index1 = index;
 
@@ -145,106 +175,108 @@ export namespace Lexer {
             const char3 = str[index++];
             const index3 = index;
 
-            let ret: Ok<[Symbol, number]> | Error
+            let ret: Ok<[Symbol, number, number]> | Error
             
             switch(char1 + char2 + char3) {
                 // boolean
                 case "=:=":
-                    ret = new Ok([new Symbol("=:="), index3])
+                    ret = new Ok([new Symbol("=:="), index, index - indexBefore])
                     break
                 case "=/=":
-                    ret = new Ok([new Symbol("=/="), index3])
+                    ret = new Ok([new Symbol("=/="), index, index - indexBefore])
                     break
                 default:
+                    index = index2
                     switch(char1 + char2) {
                         // list
                         case "++":
-                            ret = new Ok([new Symbol("++"), index2])
+                            ret = new Ok([new Symbol("++"), index, index - indexBefore])
                             break
                         case "--":
-                            ret = new Ok([new Symbol("--"), index2])
+                            ret = new Ok([new Symbol("--"), index, index - indexBefore])
                             break
                         // boolean
                         case "==":
-                            ret = new Ok([new Symbol("=="), index2])
+                            ret = new Ok([new Symbol("=="), index, index - indexBefore])
                             break
                         case "/=":
-                            ret = new Ok([new Symbol("/="), index2])
+                            ret = new Ok([new Symbol("/="), index, index - indexBefore])
                             break
                         case "=<":
-                            ret = new Ok([new Symbol("=<"), index2])
+                            ret = new Ok([new Symbol("=<"), index, index - indexBefore])
                             break
                         case ">=":
-                            ret = new Ok([new Symbol(">="), index2])
+                            ret = new Ok([new Symbol(">="), index, index - indexBefore])
                             break
                         // map
                         case "=>":
-                            ret = new Ok([new Symbol("=>"), index2])
+                            ret = new Ok([new Symbol("=>"), index, index - indexBefore])
                             break
                         // spec
                         case "::":
-                            ret = new Ok([new Symbol("::"), index2])
+                            ret = new Ok([new Symbol("::"), index, index - indexBefore])
                             break
                         // function
                         case "->":
-                            ret = new Ok([new Symbol("->"), index2])
+                            ret = new Ok([new Symbol("->"), index, index - indexBefore])
                             break
                         default:
+                            index = index1
                             switch(char1) {
                                 // Arithmetic
                                 case "+":
-                                    ret = new Ok([new Symbol("+"), index1])
+                                    ret = new Ok([new Symbol("+"), index, index - indexBefore])
                                     break
                                 case "-":
-                                    ret = new Ok([new Symbol("-"), index1])
+                                    ret = new Ok([new Symbol("-"), index, index - indexBefore])
                                     break
                                 case "*":
-                                    ret = new Ok([new Symbol("*"), index1])
+                                    ret = new Ok([new Symbol("*"), index, index - indexBefore])
                                     break
                                 case "/":
-                                    ret = new Ok([new Symbol("/"), index1])
+                                    ret = new Ok([new Symbol("/"), index, index - indexBefore])
                                     break
                                 // boolean
                                 case "<":
-                                    ret = new Ok([new Symbol("<"), index1])
+                                    ret = new Ok([new Symbol("<"), index, index - indexBefore])
                                     break
                                 case ">":
-                                    ret = new Ok([new Symbol(">"), index1])
+                                    ret = new Ok([new Symbol(">"), index, index - indexBefore])
                                     break
                                 // container
                                 case "(":
-                                    ret = new Ok([new Symbol("("), index1])
+                                    ret = new Ok([new Symbol("("), index, index - indexBefore])
                                     break
                                 case ")":
-                                    ret = new Ok([new Symbol(")"), index1])
+                                    ret = new Ok([new Symbol(")"), index, index - indexBefore])
                                     break
                                 case "[":
-                                    ret = new Ok([new Symbol("["), index1])
+                                    ret = new Ok([new Symbol("["), index, index - indexBefore])
                                     break
                                 case "]":
-                                    ret = new Ok([new Symbol("]"), index1])
+                                    ret = new Ok([new Symbol("]"), index, index - indexBefore])
                                     break
                                 case "{":
-                                    ret = new Ok([new Symbol("{"), index1])
+                                    ret = new Ok([new Symbol("{"), index, index - indexBefore])
                                     break
                                 case "}":
-                                    ret = new Ok([new Symbol("}"), index1])
+                                    ret = new Ok([new Symbol("}"), index, index - indexBefore])
                                     break
                                 // misc
                                 case "=":
-                                    ret = new Ok([new Symbol("="), index1])
+                                    ret = new Ok([new Symbol("="), index, index - indexBefore])
                                     break
                                 case ",":
-                                    ret = new Ok([new Symbol(","), index1])
+                                    ret = new Ok([new Symbol(","), index, index - indexBefore])
                                     break
                                 case ".":
-                                    ret = new Ok([new Symbol("."), index1])
+                                    ret = new Ok([new Symbol("."), index, index - indexBefore])
                                     break
                                 case ";":
-                                    ret = new Ok([new Symbol(";"), index1])
+                                    ret = new Ok([new Symbol(";"), index, index - indexBefore])
                                     break
                                 case "#":
-                                    ret = new Ok([new Symbol("#"), index1])
+                                    ret = new Ok([new Symbol("#"), index, index - indexBefore])
                                     break
                                 default:
                                     ret = NewError(Lexer.errors.unhandledChar, `Invalid Starting Char '${char1}' (CharCode ${char1?.charCodeAt(0)})`)
@@ -256,9 +288,10 @@ export namespace Lexer {
             return ret;
         }
 
-        private static tokeniseAtom(str: string, index: number, wrapped: boolean = false): Ok<[Atom, number]> | Error {
+        private static tokeniseAtom(str: string, index: number, wrapped: boolean = false): Ok<[Atom, number, number]> | Error {
             let value = "";
             let wrappedShouldReturn = false;
+            let indexBefore = index;
 
             if(str.length === 0)
                 return NewError(Lexer.errors.stringEmpty)
@@ -299,13 +332,14 @@ export namespace Lexer {
                 }
             }
             if(!wrapped || (wrapped && wrappedShouldReturn)) 
-                return new Ok([new Atom(value), index])
+                return new Ok([new Atom(value), index, index-indexBefore])
             else
                 return NewError(Lexer.errors.noClosingChar);
         }
 
-        private static tokeniseVariable(str: string, index: number = 0): Ok<[Variable, number]> | Error {
+        private static tokeniseVariable(str: string, index: number = 0): Ok<[Variable, number, number]> | Error {
             let value = "";
+            let indexBefore = index;
             
             if(str.length === 0)
                 return NewError(Lexer.errors.stringEmpty);
@@ -332,11 +366,12 @@ export namespace Lexer {
                     break;
             }
 
-            return new Ok([new Variable(value), index]);
+            return new Ok([new Variable(value), index, index-indexBefore]);
         }
 
-        private static tokeniseNumber(str: string, index: number = 0): Ok<[Number, number]> | Error {
+        private static tokeniseNumber(str: string, index: number = 0): Ok<[Number, number, number]> | Error {
             let value = "";
+            let indexBefore = index;
             
             if(str.length === 0)
                 return NewError(Lexer.errors.stringEmpty);
@@ -356,7 +391,13 @@ export namespace Lexer {
                 }
             }
 
-            return new Ok([new Number(parseInt(value)), index]);
+            return new Ok([new Number(parseInt(value)), index, index-indexBefore]);
+        }
+    }
+
+    export class StageTwo {
+        parse(tokens: Token[]): Ok<void> | Error {
+            return NotImplemented();
         }
     }
 }
